@@ -126,17 +126,6 @@ FinUP/
 
 
 
-Frontend (HTML, CSS, JS)
-            │
-            ▼
-      Flask Backend
-            │
- ┌──────────┼──────────┐
- ▼          ▼          ▼
-SQLite   ML Engine   Reports
-Database Analytics  Generator
-
-
 👨‍💻 Author
 
 Gokul Nath
