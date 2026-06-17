@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinUP. | Autonomous Financial Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green:#10b981; --red:#ef4444; --amber:#f59e0b;
+            --purple:#7c3aed; --cyan:#06b6d4;
+            --bg:#020617; --card:rgba(30,41,59,0.4);
+        }
+        body { font-family:'Plus Jakarta Sans',sans-serif; background:#020617; color:#f8fafc; overflow:hidden; }
+        .glass-card { background:var(--card); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.05); border-radius:1.25rem; }
+        .page-section { display:none; opacity:0; transform:translateY(10px); transition:all .4s ease-out; }
+        .page-section.active { display:block; opacity:1; transform:translateY(0); }
+        .nav-item.active { background:rgba(16,185,129,.1); color:#10b981; border-right:3px solid #10b981; }
+        .sidebar { border-right:1px solid rgba(255,255,255,.05); }
+        /* Modals */
+        .modal { display:none; position:fixed; inset:0; background:rgba(2,6,23,.8); z-index:50; align-items:center; justify-content:center; }
+        .modal.open { display:flex; }
+        .auth-shell { background:radial-gradient(circle at top, rgba(16,185,129,.18), transparent 42%), linear-gradient(135deg, rgba(15,23,42,.98), rgba(2,6,23,.98)); }
+        .auth-tab.active { background:rgba(16,185,129,.12); color:#34d399; border-color:rgba(16,185,129,.35); }
+        .auth-input { width:100%; background:rgba(15,23,42,.9); border:1px solid rgba(255,255,255,.08); border-radius:.9rem; padding:.85rem 1rem; color:#f8fafc; font-size:.92rem; }
+        .auth-input:focus { outline:none; border-color:rgba(16,185,129,.7); box-shadow:0 0 0 3px rgba(16,185,129,.12); }
+        /* Proc overlay */
+        #proc-overlay { display:none; position:fixed; inset:0; background:rgba(2,6,23,.85); z-index:60; align-items:center; justify-content:center; }
+        /* Data pill */
+        #data-pill { display:none; font-size:10px; font-weight:700; color:#10b981; background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.3); border-radius:6px; padding:2px 8px; }
+        /* Tab buttons */
+        .rpt-tab-btn { font-size:11px; padding:5px 14px; border-radius:8px; cursor:pointer; font-weight:700; color:#64748b; border:1px solid transparent; transition:all .2s; }
+        .rpt-tab-btn:hover { color:#f8fafc; }
+        /* Drag zone */
+        #report-drop-zone.drag, #report-drop-zone:hover { border-color:#10b981 !important; }
+    </style>
+</head>
+<body class="flex h-screen w-screen">
+<div id="auth-overlay" class="fixed inset-0 z-[80] auth-shell items-center justify-center px-4" style="display:none;">
+    <div class="w-full max-w-5xl grid lg:grid-cols-2 overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl bg-slate-950/90">
+        <div class="p-10 lg:p-14 border-b lg:border-b-0 lg:border-r border-white/5">
+            <p class="text-emerald-400 text-xs font-bold uppercase tracking-[0.35em]">Secure Access</p>
+            <h2 class="mt-5 text-4xl font-black leading-tight">FinUP starts with your own account.</h2>
+            <p class="mt-4 text-sm text-slate-400 leading-6">Create an account to store statements, reports, and goals in the database under your profile. Log in anytime to continue with your own data.</p>
+            <div class="mt-8 grid gap-4">
+                
+            </div>
+        </div>
+        <div class="p-8 lg:p-10">
+            <div class="flex gap-2 mb-6">
+                <button type="button" class="auth-tab active flex-1 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold transition" data-auth-tab="login">Log In</button>
+                <button type="button" class="auth-tab flex-1 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-slate-400 transition" data-auth-tab="signup">Sign Up</button>
+            </div>
+            <p id="auth-error" class="text-sm text-red-400 min-h-[1.5rem]"></p>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Username</label>
+                    <input id="login-username" class="auth-input" type="text" placeholder="Enter username" autocomplete="username">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+                    <input id="login-password" class="auth-input" type="password" placeholder="Enter password" autocomplete="current-password">
+                </div>
+                <button id="login-submit" type="submit" class="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 transition">Log In</button>
+            </form>
+            <form id="signup-form" class="space-y-4" style="display:none;">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Display Name</label>
+                    <input id="signup-display-name" class="auth-input" type="text" placeholder="Enter your name" autocomplete="name">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Username</label>
+                    <input id="signup-username" class="auth-input" type="text" placeholder="Choose username" autocomplete="username">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+                    <input id="signup-password" class="auth-input" type="password" placeholder="Create password" autocomplete="new-password">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Confirm Password</label>
+                    <input id="signup-confirm-password" class="auth-input" type="password" placeholder="Confirm password" autocomplete="new-password">
+                </div>
+                <button id="signup-submit" type="submit" class="w-full rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold py-3 transition">Create Account</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ── PROCESSING OVERLAY ── -->
+<div id="proc-overlay">
+    <div class="glass-card p-8 text-center">
+        <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p id="proc-msg" class="font-bold text-sm">Analysing statement…</p>
+        <p id="proc-step" class="text-xs text-slate-400 mt-1">Running ML pipeline…</p>
+    </div>
+</div>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar w-64 h-full flex flex-col p-6 shrink-0 bg-[#020617]">
+    <div class="mb-8 px-2 flex items-center justify-between">
+        <h1 class="text-2xl font-black tracking-tighter text-emerald-500">FinUP.</h1>
+    </div>
+    <nav class="flex-1 space-y-1">
+        <button onclick="showSection('dashboard',event)" class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            <span>Dashboard</span>
+        </button>
+        <button onclick="showSection('transactions',event)" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <span>Transactions</span>
+        </button>
+        <button onclick="showSection('goals',event)" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+            <span>Goals</span>
+        </button>
+        <button onclick="showSection('investments',event)" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            <span>Investments</span>
+        </button>
+        <button onclick="showSection('reports',event)" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-400 hover:text-white transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span>Reports & Analysis</span>
+        </button>
+    </nav>
+    <div class="mt-auto border-t border-white/5 pt-5">
+        <div class="flex items-center gap-3 mb-4 px-2">
+            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center font-bold text-black" id="user-avatar">G</div>
+            <div>
+                <p class="text-xs font-bold" id="user-name">Guest</p>
+                <p class="text-[10px] text-slate-500" id="user-bank">Sign in to continue</p>
+            </div>
+        </div>
+        <button id="logout-btn" class="w-full px-4 py-2.5 rounded-xl border border-white/10 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition">Log Out</button>
+    </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="flex-1 overflow-y-auto p-8 bg-[#020617]" id="main-scroll">
+
+<!-- ════════════════ DASHBOARD ════════════════ -->
+<section id="dashboard" class="page-section active space-y-6">
+    <header class="flex justify-between items-end">
+        <div>
+            <h2 class="text-3xl font-bold" id="welcome-heading">Welcome!</h2>
+            <p class="text-slate-400 mt-1" id="dash-sub">Upload a bank statement in Reports to see live insights.</p>
+        </div>
+    </header>
+
+    <!-- KPI row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card p-5">
+            <p class="text-xs text-slate-400">Credit</p>
+            <p id="dash-credit" class="text-xl font-bold text-emerald-500 mt-1">₹0.00</p>
+            <p id="dash-credit-sub" class="text-[10px] text-slate-500 mt-0.5">0 credits</p>
+        </div>
+        <div class="glass-card p-5">
+            <p class="text-xs text-slate-400">Debit</p>
+            <p id="dash-debit" class="text-xl font-bold text-red-400 mt-1">₹0.00</p>
+            <p id="dash-debit-sub" class="text-[10px] text-slate-500 mt-0.5">0 debits</p>
+        </div>
+        <div class="glass-card p-5">
+            <p class="text-xs text-slate-400">Net Position</p>
+            <p id="dash-net" class="text-xl font-bold mt-1">₹0.00</p>
+            <p id="dash-savings-rate" class="text-[10px] text-slate-500 mt-0.5">—</p>
+        </div>
+        <div class="glass-card p-5">
+            <p class="text-xs text-slate-400">Transactions</p>
+            <p id="dash-tx-count" class="text-xl font-bold text-amber-500 mt-1">0</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">in selected period</p>
+        </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 glass-card p-6">
+            <h3 class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-wider">Daily Cashflow Trajectory</h3>
+            <div style="position:relative;height:180px;"><canvas id="trendsChart"></canvas></div>
+        </div>
+        <div class="glass-card p-6">
+            <h3 class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-wider">Spending by Category</h3>
+            <div style="position:relative;height:130px;"><canvas id="liquidityPie"></canvas></div>
+            <div id="donut-legend" class="mt-3 space-y-1"></div>
+        </div>
+    </div>
+
+    <!-- Category bars + recent txns -->
+   <div class="glass-card p-6 col-span-2">
+        <div class="glass-card p-6">
+            <h3 class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-wider">Top Spending Categories</h3>
+            <div id="dash-cats"><p class="text-xs text-slate-500 italic">Upload a statement to see category breakdown.</p></div>
+        </div>
+        
+    </div>
+</section>
+
+<!-- ════════════════ TRANSACTIONS ════════════════ -->
+<section id="transactions" class="page-section space-y-6">
+    <header class="flex justify-between items-end flex-wrap gap-4">
+        <div>
+            <h2 class="text-3xl font-bold">Transaction Intelligence</h2>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="anom-warning" style="display:none;" class="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">
+                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                <span id="anom-count">0</span> anomaly(ies) detected
+            </div>
+            <div class="flex bg-slate-800 p-1 rounded-xl border border-white/5">
+                <button onclick="updatePeriod('1M',event)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/5 transition active-period bg-emerald-500 text-white">1M</button>
+                <button onclick="updatePeriod('6M',event)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/5 transition text-slate-400">6M</button>
+                <button onclick="updatePeriod('12M',event)" class="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/5 transition text-slate-400">12M</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Charts row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div class="lg:col-span-2 glass-card p-6 flex flex-col">
+            <h3 class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-wider">Spending by Mode</h3>
+            <div class="relative flex-1" style="min-height:160px;"><canvas id="modeBarChart"></canvas></div>
+        </div>
+        <div class="glass-card p-6 border-t-4 border-amber-500 bg-amber-500/5">
+            <h3 class="text-amber-500 font-bold text-sm flex items-center gap-2 mb-4">
+                <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>Upcoming Bills
+            </h3>
+            <div id="bills-list"><p class="text-xs text-slate-500 italic">No bills detected yet.</p></div>
+        </div>
+    </div>
+
+    <!-- Category breakdown + full txn table -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="glass-card p-6">
+            <h3 class="text-xs font-bold text-slate-500 mb-4 uppercase tracking-wider">Category Breakdown</h3>
+            <div style="position:relative;height:220px;"><canvas id="txCatChart"></canvas></div>
+        </div>
+        <div class="lg:col-span-2 glass-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">All Transactions</h3>
+                <input id="tx-search" type="text" placeholder="Search…" class="bg-slate-800 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white w-40 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead><tr class="text-xs text-slate-500 border-b border-white/5">
+                        <th class="pb-2 text-left">Date</th>
+                        <th class="pb-2 text-left">Description</th>
+                        <th class="pb-2 text-left">Category</th>
+                        <th class="pb-2 text-left">Mode</th>
+                        <th class="pb-2 text-right">Amount</th>
+                        <th class="pb-2 text-right">Balance</th>
+                    </tr></thead>
+                    <tbody id="recent-txn-list-full">
+                        <tr><td colspan="6" class="py-6 text-center text-xs text-slate-500 italic">Upload a bank statement to see transactions.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- GOALS------------------------------------->
+<section id="goals" class="page-section space-y-6">
+    <header class="flex justify-between items-end">
+        <div>
+            <h2 class="text-3xl font-bold">Savings Goals</h2>
+            <p class="text-slate-400 mt-1">Track targets</p>
+        </div>
+        <button id="btn-new-goal" class="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-xl transition">+ New Goal</button>
+    </header>
+
+    <!-- ML summary cards -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="glass-card p-4 text-center">
+            <p class="text-xs text-slate-400">Monthly Savings</p>
+            <p id="g-monthly" class="text-xl font-bold text-emerald-500 mt-1">—</p>
+        </div>
+        <div class="glass-card p-4 text-center">
+            <p class="text-xs text-slate-400">Savings Rate</p>
+            <p id="g-rate-val" class="text-xl font-bold mt-1">—</p>
+        </div>
+        <div class="glass-card p-4 text-center">
+            <p class="text-xs text-slate-400">Goals Achieved</p>
+            <p id="g-achieved-count" class="text-xl font-bold text-amber-500 mt-1">0</p>
+        </div>
+    </div>
+
+    <!-- Goals list + forecast chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-0" id="goals-list">
+            <p class="text-xs text-slate-500 italic text-center py-4">No goals yet. Create your first goal!</p>
+        </div>
+        <div class="space-y-4">
+            <div class="glass-card p-5">
+                <h3 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">6-Month Savings Forecast</h3>
+                <div style="position:relative;height:160px;"><canvas id="goalForecastChart"></canvas></div>
+            </div>
+            <!-- Achieved -->
+            <div class="glass-card p-5">
+                <h3 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Achieved Goals 🏆</h3>
+                <div id="achieved-goals-list"><p class="text-xs text-slate-500 italic text-center py-2">No goals achieved yet.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════ INVESTMENTS ════════════════ -->
+<section id="investments" class="page-section space-y-6">
+    <header>
+        <h2 class="text-3xl font-bold">Investments & Portfolio</h2>
+        <p class="text-slate-400 mt-1"> investment transactions</p>
+    </header>
+
+    <!-- Live tickers -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card p-4"><p class="text-xs text-slate-400 mb-1">NIFTY 50</p><p id="nifty-price"  class="text-sm font-mono text-slate-300">—</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-slate-400 mb-1">SENSEX</p>  <p id="sensex-price" class="text-sm font-mono text-slate-300">—</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-slate-400 mb-1">GOLD/1g</p><p id="gold-price"   class="text-sm font-mono text-slate-300">—</p></div>
+        <div class="glass-card p-4"><p class="text-xs text-slate-400 mb-1">SILVER/1g</p><p id="silver-price" class="text-sm font-mono text-slate-300">—</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Detected investment txns -->
+        <div class="lg:col-span-2 glass-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Auto-Detected Investment Transactions</h3>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400">Total:</span>
+                    <span id="inv-total-amount" class="text-sm font-bold text-purple-400">₹0</span>
+                    <span class="text-xs text-slate-500">(<span id="inv-tx-count">0</span> txns)</span>
+                </div>
+            </div>
+            <div id="inv-detected"><p class="text-xs text-slate-500 italic text-center py-4">Upload a bank statement to auto-detect investment transactions.</p></div>
+            <div style="position:relative;height:120px;margin-top:16px;"><canvas id="inv-chart"></canvas></div>
+        </div>
+
+        <!-- Static portfolio + bills -->
+        <div class="space-y-4">
+            <div class="glass-card p-5">
+                <h3 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Static Portfolio</h3>
+                <div class="space-y-3">
+                    <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold">Nifty 50 Index Fund</span>
+                            <span class="text-xs text-emerald-400">+26.3%</span>
+                        </div>
+                        <p class="text-sm font-bold mt-1">₹18,420</p>
+                        <p class="text-[10px] text-slate-500">Invested ₹14,586</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold">Angel One Portfolio</span>
+                            <span class="text-xs text-emerald-400">+7.0%</span>
+                        </div>
+                        <p class="text-sm font-bold mt-1">₹52,400</p>
+                        <p class="text-[10px] text-slate-500">Invested ₹49,000</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold">Tech Growth SIP</span>
+                            <span class="text-xs text-emerald-400">+7.8%</span>
+                        </div>
+                        <p class="text-sm font-bold mt-1">₹5,240</p>
+                        <p class="text-[10px] text-slate-500">₹1,200/mo SIP active</p>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card p-5">
+                <h3 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Upcoming Bills</h3>
+                <div id="inv-bills-list"><p class="text-xs text-slate-500 italic">Upload statement to detect bills.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ════════════════ REPORTS & ANALYSIS ════════════════ -->
+<section id="reports" class="page-section space-y-6">
+    <header class="flex justify-between items-end flex-wrap gap-4">
+        <div>
+            <h2 class="text-3xl font-bold">Reports & Trend Analysis</h2>
+            <p class="text-slate-400 mt-1">ML-powered categorisation</p>
+        </div>
+        <button onclick="downloadCurrentReport()" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-xl transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Report
+        </button>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Upload panel -->
+        <div class="space-y-5">
+            <div id="report-drop-zone" class="glass-card p-7 border-2 border-dashed border-slate-700 hover:border-emerald-500 transition-all group cursor-pointer" onclick="document.getElementById('statementFile').click()">
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                        <svg class="w-7 h-7 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    </div>
+                    <h3 class="font-bold text-sm">Upload Bank Statement</h3>
+                    <p class="text-xs text-slate-500 mt-1">Drag & drop or click · .xlsx </p>
+                    <input id="statementFile" type="file" accept=".xlsx,.csv,.pdf" class="hidden">
+                    <p id="fileName" class="text-xs text-slate-400 mt-3 font-semibold">No file chosen</p>
+                    <button id="process-btn" onclick="event.stopPropagation();processClusters()" disabled
+                        class="mt-3 px-6 py-2 bg-slate-600 opacity-50 cursor-not-allowed rounded-lg text-xs font-bold transition">
+                        Process & Analyse
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filed reports -->
+            <div class="glass-card p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Filed Reports</h3>
+                <div id="filed-reports-list"><p class="text-xs text-slate-500 text-center py-2">No reports filed yet.</p></div>
+            </div>
+        </div>
+
+        <!-- Main report view -->
+        <div class="xl:col-span-2 space-y-5 min-w-0">
+
+            <!-- Cluster chart + KPIs -->
+            <div class="glass-card p-6">
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <h3 class="font-bold">Spending Category Clusters</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">ML keyword + TF-IDF analysis</p>
+                    </div>
+                    <div class="text-right">
+                        <p id="report-total" class="text-2xl font-bold">₹0</p>
+                        <p class="text-[10px] text-slate-500 uppercase">Total Debit</p>
+                    </div>
+                </div>
+                <div style="position:relative;height:200px;"><canvas id="clusterBarChart"></canvas></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="glass-card p-6">
+                <div class="flex gap-2 mb-5 flex-wrap">
+                    <button class="rpt-tab-btn bg-emerald-500/20 text-emerald-400" data-tab="overview"   onclick="rptTab('overview')">Overview</button>
+                    <button class="rpt-tab-btn" data-tab="anomalies" onclick="rptTab('anomalies')">🚨 Anomalies</button>
+                    <button class="rpt-tab-btn" data-tab="forecast"  onclick="rptTab('forecast')">📈 Forecast</button>
+                    <button class="rpt-tab-btn" data-tab="trends"    onclick="rptTab('trends')">📊 Trends</button>
+                    <button class="rpt-tab-btn" data-tab="table"     onclick="rptTab('table')">Category Table</button>
+                </div>
+
+                <!-- OVERVIEW TAB -->
+                <div id="rpt-tab-overview">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5" id="rpt-chips"></div>
+                    <div class="min-w-0">
+                        <p class="text-xs text-slate-500 mb-2 uppercase tracking-wider font-bold">AI Insights</p>
+                        <div id="rpt-insights"><div class="p-3 bg-white/5 rounded-xl text-xs text-slate-500">Upload a statement to see insights.</div></div>
+                    </div>
+                </div>
+
+                <!-- ANOMALIES TAB -->
+                <div id="rpt-tab-anomalies" style="display:none;">
+                    <p class="text-xs text-slate-500 mb-3">Transactions flagged by Isolation Forest anomaly detection (σ &gt; 2)</p>
+                    <div id="rpt-anomalies"><p class="text-xs text-slate-500 text-center py-4">No anomalies detected yet.</p></div>
+                </div>
+
+                <!-- FORECAST TAB -->
+                <div id="rpt-tab-forecast" style="display:none;">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="text-xs text-slate-500">Next-month projection based on spending trend</p>
+                        <span class="text-sm font-bold text-amber-400">Total: <span id="rpt-forecast-total">₹0</span></span>
+                    </div>
+                    <div style="position:relative;height:160px;margin-bottom:16px;"><canvas id="rptForecast"></canvas></div>
+                    <div id="rpt-forecast-table"></div>
+                </div>
+
+                <!-- TRENDS TAB -->
+                <div id="rpt-tab-trends" style="display:none;">
+                    <p class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Monthly Income vs Spent</p>
+                    <div style="position:relative;height:160px;margin-bottom:24px;"><canvas id="trendIncomeSpentChart"></canvas></div>
+                    <p class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Net Savings Trend</p>
+                    <div style="position:relative;height:140px;margin-bottom:24px;"><canvas id="trendNetChart"></canvas></div>
+                    <p class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">Month-over-Month Comparison</p>
+                    <div id="month-compare-table"><p class="text-xs text-slate-500 text-center py-4">No monthly data yet. Upload statements to compare months.</p></div>
+                </div>
+
+                <!-- CATEGORY TABLE TAB -->
+                <div id="rpt-tab-table" style="display:none;">
+                    <table class="w-full text-sm">
+                        <thead><tr class="text-xs text-slate-500 border-b border-white/5">
+                            <th class="pb-2 text-left">Category</th>
+                            <th class="pb-2 text-center">Txns</th>
+                            <th class="pb-2 text-right">Avg/Txn</th>
+                            <th class="pb-2 text-right">Total</th>
+                        </tr></thead>
+                        <tbody id="rpt-body">
+                            <tr><td colspan="4" class="py-6 text-center text-xs text-slate-500">Upload a statement to see category breakdown.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</section>
+
+</main><!-- /main -->
+
+<!-- ════════════ GOAL MODAL ════════════ -->
+<div id="goal-modal" class="modal">
+    <div class="glass-card p-8 w-full max-w-md mx-4">
+        <h3 class="font-bold text-lg mb-5">New Savings Goal</h3>
+        <div class="space-y-3">
+            <div><label class="text-xs text-slate-400 block mb-1">Goal Name</label>
+                <input id="g-name" type="text" placeholder="e.g. Emergency Fund" class="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs text-slate-400 block mb-1">Target (₹)</label>
+                    <input id="g-target" type="number" placeholder="100000" class="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"></div>
+                <div><label class="text-xs text-slate-400 block mb-1">Already Saved (₹)</label>
+                    <input id="g-saved" type="number" placeholder="0" class="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs text-slate-400 block mb-1">Deadline</label>
+                    <input id="g-deadline" type="text" placeholder="Dec 2026" class="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"></div>
+                <div><label class="text-xs text-slate-400 block mb-1">Color</label>
+                    <select id="g-color" class="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        <option value="#10b981">Emerald</option>
+                        <option value="#06b6d4">Cyan</option>
+                        <option value="#f59e0b">Amber</option>
+                        <option value="#a855f7">Purple</option>
+                        <option value="#ef4444">Red</option>
+                    </select></div>
+            </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+            <button id="btn-cancel-goal" class="flex-1 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition">Cancel</button>
+            <button id="btn-save-goal"   class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-bold transition">Save Goal</button>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════ ADD MONEY MODAL ════════════ -->
+<div id="add-money-modal" class="modal">
+    <div class="glass-card p-8 w-full max-w-sm mx-4">
+        <h3 class="font-bold text-lg mb-1">Add Money</h3>
+        <p id="add-money-title" class="text-xs text-slate-400 mb-1">—</p>
+        <p id="add-money-remain" class="text-xs text-emerald-400 mb-5">—</p>
+        <div>
+            <label class="text-xs text-slate-400 block mb-1">Amount to Add (₹)</label>
+            <input id="add-money-amount" type="number" placeholder="5000" class="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex gap-3 mt-5">
+            <button id="btn-cancel-add-money" class="flex-1 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition">Cancel</button>
+            <button id="btn-confirm-add-money" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-bold transition">Add Money</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
