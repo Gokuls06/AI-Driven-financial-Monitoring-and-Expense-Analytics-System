@@ -1,6 +1,6 @@
-🚀 FinUP – Autonomous Financial Intelligence Platform
+🚀 AI Driven Financial Monitoring And Expense Analytics System
 
-FinUP is an AI-powered Personal Finance Management System that analyzes bank statements, categorizes expenses using Machine Learning, tracks savings goals, detects anomalies, forecasts future spending, and generates intelligent financial insights.
+AI Driven Financial Monitoring And Expense Analytics System that analyzes bank statements, categorizes expenses using Machine Learning, tracks savings goals, detects anomalies, forecasts future spending, and generates intelligent financial insights.
 
 ---
 
